@@ -35,6 +35,12 @@ function App() {
     }
   };
 
+  // --- PREVIEW SCALING STATES ---
+  const [scale, setScale] = useState(1);
+  const [previewHeight, setPreviewHeight] = useState(1123);
+  const wrapperRef = React.useRef(null);
+  const captureRef = React.useRef(null);
+
   // --- STATE INITIALIZATION ---
   const [formData, setFormData] = useState({
     createdAt: new Date().toISOString().split('T')[0],
@@ -59,6 +65,33 @@ function App() {
   ]);
 
 
+
+  useEffect(() => {
+    const updateScale = () => {
+      if (wrapperRef.current && captureRef.current) {
+        const containerWidth = wrapperRef.current.offsetWidth;
+        const newScale = Math.min(1, containerWidth / 794);
+        setScale(newScale);
+        setPreviewHeight(captureRef.current.scrollHeight * newScale);
+      }
+    };
+
+    updateScale();
+
+    const resizeObserver = new ResizeObserver(() => {
+      updateScale();
+    });
+
+    if (wrapperRef.current) {
+      resizeObserver.observe(wrapperRef.current);
+    }
+
+    window.addEventListener('resize', updateScale);
+    return () => {
+      resizeObserver.disconnect();
+      window.removeEventListener('resize', updateScale);
+    };
+  }, [orderItems, paymentTerms, termsConditions, isAuthenticated]);
 
   // --- DYNAMIC CALCULATIONS ---
   const parseQty = (qty) => {
@@ -117,6 +150,14 @@ function App() {
     const element = document.getElementById('invoice-capture');
     if (!element) return;
 
+    // Clone the element to avoid stripping styles from the active screen preview
+    const clone = element.cloneNode(true);
+    clone.style.transform = 'none';
+    clone.style.position = 'relative';
+    clone.style.top = '0';
+    clone.style.left = '0';
+    clone.style.width = '794px';
+
     // Define options for html2pdf
     const options = {
       margin: [12, 12, 12, 12], // [top, left, bottom, right] margins in mm
@@ -138,7 +179,7 @@ function App() {
 
     // Trigger download
     html2pdf()
-      .from(element)
+      .from(clone)
       .set(options)
       .save()
       .then(() => {
@@ -307,14 +348,9 @@ function App() {
 
             {/* 6. Order Items Dynamic Form */}
             <div className="form-section">
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
-                <h3 className="section-title" style={{ marginBottom: 0 }}>
-                  <ShoppingBag size={16} /> Order Items
-                </h3>
-                <button type="button" onClick={addItem} className="btn btn-secondary" style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem' }}>
-                  <Plus size={14} /> Add Item
-                </button>
-              </div>
+              <h3 className="section-title">
+                <ShoppingBag size={16} /> Order Items
+              </h3>
 
               <div className="items-builder-list">
                 {orderItems.map((item, index) => (
@@ -364,19 +400,20 @@ function App() {
                   </div>
                 ))}
               </div>
+
+              <div style={{ marginTop: '1rem' }}>
+                <button type="button" onClick={addItem} className="btn btn-secondary" style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem' }}>
+                  <Plus size={14} /> Add Item
+                </button>
+              </div>
             </div>
 
             {/* Payment Terms Input Section */}
             <div className="form-section">
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
-                <h3 className="section-title" style={{ marginBottom: 0 }}>
-                  <CreditCard size={16} /> Payment Terms
-                </h3>
-                <button type="button" onClick={() => setPaymentTerms([...paymentTerms, ''])} className="btn btn-secondary" style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem' }}>
-                  <Plus size={14} /> Add Line
-                </button>
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+              <h3 className="section-title">
+                <CreditCard size={16} /> Payment Terms
+              </h3>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: paymentTerms.length > 0 ? '1rem' : 0 }}>
                 {paymentTerms.map((term, index) => (
                   <div key={index} style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
                     <input
@@ -401,19 +438,19 @@ function App() {
                   </div>
                 ))}
               </div>
+              <div>
+                <button type="button" onClick={() => setPaymentTerms([...paymentTerms, ''])} className="btn btn-secondary" style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem' }}>
+                  <Plus size={14} /> Add Line
+                </button>
+              </div>
             </div>
 
             {/* Terms & Conditions Input Section */}
             <div className="form-section">
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
-                <h3 className="section-title" style={{ marginBottom: 0 }}>
-                  <FileText size={16} /> Terms & Conditions
-                </h3>
-                <button type="button" onClick={() => setTermsConditions([...termsConditions, ''])} className="btn btn-secondary" style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem' }}>
-                  <Plus size={14} /> Add Line
-                </button>
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+              <h3 className="section-title">
+                <FileText size={16} /> Terms & Conditions
+              </h3>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: termsConditions.length > 0 ? '1rem' : 0 }}>
                 {termsConditions.map((term, index) => (
                   <div key={index} style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
                     <input
@@ -438,6 +475,11 @@ function App() {
                   </div>
                 ))}
               </div>
+              <div>
+                <button type="button" onClick={() => setTermsConditions([...termsConditions, ''])} className="btn btn-secondary" style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem' }}>
+                  <Plus size={14} /> Add Line
+                </button>
+              </div>
             </div>
 
           </div>
@@ -453,8 +495,28 @@ function App() {
           </div>
 
           {/* --- A4 SHEET CAPTURE WRAPPER --- */}
-          <div className="a4-wrapper">
-            <div id="invoice-capture" className="a4-page">
+          <div 
+            className="a4-wrapper" 
+            ref={wrapperRef} 
+            style={{ 
+              height: `${previewHeight}px`,
+              position: 'relative',
+              overflow: 'hidden'
+            }}
+          >
+            <div 
+              id="invoice-capture" 
+              ref={captureRef} 
+              className="a4-page"
+              style={{
+                width: '794px',
+                transform: `scale(${scale})`,
+                transformOrigin: 'top left',
+                position: 'absolute',
+                top: 0,
+                left: 0
+              }}
+            >
 
               {/* Header section */}
               <div className="inv-header">

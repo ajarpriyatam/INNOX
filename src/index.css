@@ -387,7 +387,6 @@ header.app-header {
   background-color: #ffffff;
   box-shadow: 0 15px 45px rgba(0, 0, 0, 0.35);
   width: 100%;
-  aspect-ratio: 1 / 1.414; /* Standard A4 ratio */
   max-width: 794px; /* Standard A4 pixel size for 96 DPI */
   color: #1f2937;
   font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
@@ -633,11 +632,7 @@ header.app-header {
     gap: 1rem;
   }
   .btn-download-sticky {
-    bottom: 1rem;
-    right: 1rem;
-    left: 1rem;
-    border-radius: 0.5rem;
-    text-align: center;
+    display: none !important;
   }
   .a4-wrapper {
     box-shadow: none;
