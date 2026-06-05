@@ -150,13 +150,19 @@ function App() {
     const element = document.getElementById('invoice-capture');
     if (!element) return;
 
-    // Clone the element to avoid stripping styles from the active screen preview
-    const clone = element.cloneNode(true);
-    clone.style.transform = 'none';
-    clone.style.position = 'relative';
-    clone.style.top = '0';
-    clone.style.left = '0';
-    clone.style.width = '794px';
+    // Save original inline styles to restore them after rendering
+    const originalTransform = element.style.transform;
+    const originalPosition = element.style.position;
+    const originalTop = element.style.top;
+    const originalLeft = element.style.left;
+    const originalWidth = element.style.width;
+
+    // Temporarily reset styles to guarantee a desktop-like 794px width render
+    element.style.transform = 'none';
+    element.style.position = 'relative';
+    element.style.top = '0';
+    element.style.left = '0';
+    element.style.width = '794px';
 
     // Define options for html2pdf
     const options = {
@@ -168,8 +174,9 @@ function App() {
         useCORS: true,
         letterRendering: true,
         logging: false,
-        windowWidth: 794,
-        width: 794
+        scrollX: 0,
+        scrollY: 0,
+        windowWidth: 794
       },
       jsPDF: {
         unit: 'mm',
@@ -179,12 +186,19 @@ function App() {
       pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
     };
 
-    // Trigger download
+    // Trigger download directly from the styled active DOM element
     html2pdf()
-      .from(clone)
+      .from(element)
       .set(options)
       .save()
       .then(() => {
+        // Restore original styles
+        element.style.transform = originalTransform;
+        element.style.position = originalPosition;
+        element.style.top = originalTop;
+        element.style.left = originalLeft;
+        element.style.width = originalWidth;
+
         // Success micro-animation (confetti explosion!)
         confetti({
           particleCount: 150,
@@ -195,6 +209,12 @@ function App() {
       })
       .catch(err => {
         console.error('PDF generation error:', err);
+        // Restore original styles even if generation fails
+        element.style.transform = originalTransform;
+        element.style.position = originalPosition;
+        element.style.top = originalTop;
+        element.style.left = originalLeft;
+        element.style.width = originalWidth;
       });
   };
 
