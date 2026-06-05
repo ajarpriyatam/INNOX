@@ -167,7 +167,9 @@ function App() {
         scale: 2,
         useCORS: true,
         letterRendering: true,
-        logging: false
+        logging: false,
+        windowWidth: 794,
+        width: 794
       },
       jsPDF: {
         unit: 'mm',
