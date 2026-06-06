@@ -150,6 +150,16 @@ function App() {
     const element = document.getElementById('invoice-capture');
     if (!element) return;
 
+    // Save original body styles to prevent mobile layout recalculation/clipping
+    const originalBodyWidth = document.body.style.width;
+    const originalBodyMinWidth = document.body.style.minWidth;
+    const originalBodyOverflow = document.body.style.overflow;
+
+    // Save original wrapper styles
+    const originalWrapperWidth = wrapperRef.current ? wrapperRef.current.style.width : '';
+    const originalWrapperMaxWidth = wrapperRef.current ? wrapperRef.current.style.maxWidth : '';
+    const originalWrapperOverflow = wrapperRef.current ? wrapperRef.current.style.overflow : '';
+
     // Save original inline styles to restore them after rendering
     const originalTransform = element.style.transform;
     const originalPosition = element.style.position;
@@ -157,7 +167,17 @@ function App() {
     const originalLeft = element.style.left;
     const originalWidth = element.style.width;
 
-    // Temporarily reset styles to guarantee a desktop-like 794px width render
+    // Temporarily force a desktop-like 794px width on the body, wrapper and element to ensure correct layout on mobile
+    document.body.style.width = '794px';
+    document.body.style.minWidth = '794px';
+    document.body.style.overflow = 'visible';
+
+    if (wrapperRef.current) {
+      wrapperRef.current.style.width = '794px';
+      wrapperRef.current.style.maxWidth = 'none';
+      wrapperRef.current.style.overflow = 'visible';
+    }
+
     element.style.transform = 'none';
     element.style.position = 'relative';
     element.style.top = '0';
@@ -186,18 +206,34 @@ function App() {
       pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
     };
 
+    const restoreStyles = () => {
+      // Restore original body styles
+      document.body.style.width = originalBodyWidth;
+      document.body.style.minWidth = originalBodyMinWidth;
+      document.body.style.overflow = originalBodyOverflow;
+
+      // Restore original wrapper styles
+      if (wrapperRef.current) {
+        wrapperRef.current.style.width = originalWrapperWidth;
+        wrapperRef.current.style.maxWidth = originalWrapperMaxWidth;
+        wrapperRef.current.style.overflow = originalWrapperOverflow;
+      }
+
+      // Restore original element styles
+      element.style.transform = originalTransform;
+      element.style.position = originalPosition;
+      element.style.top = originalTop;
+      element.style.left = originalLeft;
+      element.style.width = originalWidth;
+    };
+
     // Trigger download directly from the styled active DOM element
     html2pdf()
       .from(element)
       .set(options)
       .save()
       .then(() => {
-        // Restore original styles
-        element.style.transform = originalTransform;
-        element.style.position = originalPosition;
-        element.style.top = originalTop;
-        element.style.left = originalLeft;
-        element.style.width = originalWidth;
+        restoreStyles();
 
         // Success micro-animation (confetti explosion!)
         confetti({
@@ -209,14 +245,10 @@ function App() {
       })
       .catch(err => {
         console.error('PDF generation error:', err);
-        // Restore original styles even if generation fails
-        element.style.transform = originalTransform;
-        element.style.position = originalPosition;
-        element.style.top = originalTop;
-        element.style.left = originalLeft;
-        element.style.width = originalWidth;
+        restoreStyles();
       });
   };
+
 
   if (!isAuthenticated) {
     return (
@@ -517,18 +549,18 @@ function App() {
           </div>
 
           {/* --- A4 SHEET CAPTURE WRAPPER --- */}
-          <div 
-            className="a4-wrapper" 
-            ref={wrapperRef} 
-            style={{ 
+          <div
+            className="a4-wrapper"
+            ref={wrapperRef}
+            style={{
               height: `${previewHeight}px`,
               position: 'relative',
               overflow: 'hidden'
             }}
           >
-            <div 
-              id="invoice-capture" 
-              ref={captureRef} 
+            <div
+              id="invoice-capture"
+              ref={captureRef}
               className="a4-page"
               style={{
                 width: '794px',
@@ -607,7 +639,7 @@ function App() {
               </div>
 
               {/* Terms and Summary Section */}
-              <div className="inv-terms-summary-wrapper" style={{ display: 'flex', justifyContent: 'space-between', marginTop: '20px', gap: '20px', alignItems: 'flex-start' }}>
+              <div className="inv-terms-summary-wrapper" style={{ display: 'flex', justifyContent: 'space-between', marginTop: '20px', gap: '20px', alignItems: 'flex-start', width: '100%' }}>
 
                 {/* Left side: Terms */}
                 <div className="inv-terms-container" style={{ display: 'flex', flexDirection: 'column', gap: '12px', flexGrow: 1, maxWidth: '60%', textAlign: 'left' }}>
@@ -615,8 +647,8 @@ function App() {
                   {/* Payment Terms */}
                   {paymentTerms.length > 0 && (
                     <div className="inv-terms-block">
-                      <h5 style={{ fontWeight: 'bold', fontSize: '9px', textTransform: 'uppercase', color: '#1e3a8a', marginBottom: '4px', borderBottom: '1px solid #cbd5e1', paddingBottom: '2px' }}>Payment Terms</h5>
-                      <ol style={{ paddingLeft: '12px', margin: 0, fontSize: '8px', color: '#4b5563' }}>
+                      <h5 style={{ fontWeight: 'bold', fontSize: '12px', textTransform: 'uppercase', color: '#1e3a8a', marginBottom: '4px', borderBottom: '1px solid #cbd5e1', paddingBottom: '2px' }}>Payment Terms</h5>
+                      <ol style={{ paddingLeft: '12px', margin: 0, fontSize: '12px', color: '#4b5563' }}>
                         {paymentTerms.map((term, i) => term.trim() && (
                           <li key={i} style={{ marginBottom: '2px' }}>{term}</li>
                         ))}
@@ -627,8 +659,8 @@ function App() {
                   {/* Terms & Conditions */}
                   {termsConditions.length > 0 && (
                     <div className="inv-terms-block">
-                      <h5 style={{ fontWeight: 'bold', fontSize: '9px', textTransform: 'uppercase', color: '#1e3a8a', marginBottom: '4px', borderBottom: '1px solid #cbd5e1', paddingBottom: '2px' }}>Terms & Conditions</h5>
-                      <ol style={{ paddingLeft: '12px', margin: 0, fontSize: '8px', color: '#4b5563' }}>
+                      <h5 style={{ fontWeight: 'bold', fontSize: '12px', textTransform: 'uppercase', color: '#1e3a8a', marginBottom: '4px', borderBottom: '1px solid #cbd5e1', paddingBottom: '2px' }}>Terms & Conditions</h5>
+                      <ol style={{ paddingLeft: '12px', margin: 0, fontSize: '12px', color: '#4b5563' }}>
                         {termsConditions.map((term, i) => term.trim() && (
                           <li key={i} style={{ marginBottom: '2px' }}>{term}</li>
                         ))}
@@ -639,12 +671,12 @@ function App() {
                 </div>
 
                 {/* Right side: Grand Total */}
-                <div className="inv-total-block" style={{ minWidth: '180px', display: 'flex', justifyContent: 'flex-end' }}>
+                <div className="inv-total-block" style={{ width: '220px', minWidth: '200px', display: 'flex', justifyContent: 'flex-end' }}>
                   <table className="inv-summary-table" style={{ width: '100%' }}>
                     <tbody>
-                      <tr className="total-row" style={{ borderTop: '2px solid #1e3a8a' }}>
-                        <td style={{ fontSize: '11px', fontWeight: 'bold', padding: '8px 0', color: '#1e3a8a', textAlign: 'left' }}>Total Amount:</td>
-                        <td className="val" style={{ fontSize: '11px', fontWeight: 'bold', padding: '8px 0', textAlign: 'right', color: '#1e3a8a' }}>{total.toLocaleString()}</td>
+                      <tr className="total-row" style={{ borderTop: '2.5px solid #1e3a8a' }}>
+                        <td style={{ fontSize: '15px', fontWeight: 'bold', padding: '10px 0', color: '#1e3a8a', textAlign: 'left' }}>Total Amount:</td>
+                        <td className="val" style={{ fontSize: '15px', fontWeight: 'bold', padding: '10px 0', textAlign: 'right', color: '#1e3a8a' }}>{total.toLocaleString()}</td>
                       </tr>
                     </tbody>
                   </table>
