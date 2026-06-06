@@ -150,6 +150,9 @@ function App() {
     const element = document.getElementById('invoice-capture');
     if (!element) return;
 
+    const footerElement = element.querySelector('.inv-footer');
+    const originalFooterDisplay = footerElement ? footerElement.style.display : '';
+
     // Save original viewport meta tag content to restore later
     const viewportMeta = document.querySelector('meta[name="viewport"]');
     const originalViewportContent = viewportMeta ? viewportMeta.getAttribute('content') : '';
@@ -174,6 +177,11 @@ function App() {
     const originalTop = element.style.top;
     const originalLeft = element.style.left;
     const originalWidth = element.style.width;
+
+    // Hide the HTML preview footer temporarily during PDF generation (it will be drawn programmatically on every page)
+    if (footerElement) {
+      footerElement.style.display = 'none';
+    }
 
     // 1. Temporarily force desktop viewport width of 794px in meta viewport
     if (viewportMeta) {
@@ -204,10 +212,15 @@ function App() {
     // 3. Scroll to the top-left to avoid html2canvas screenshot offset issues
     window.scrollTo(0, 0);
 
+    // Dynamic filename based on customer name
+    const customerName = formData.customerInfo.name ? formData.customerInfo.name.trim() : '';
+    const safeCustomerName = customerName ? customerName.replace(/[^a-zA-Z0-9\s]/g, '').replace(/\s+/g, '_') + '_' : '';
+    const filename = `${safeCustomerName}invoice.pdf`;
+
     // Define options for html2pdf
     const options = {
-      margin: [12, 12, 12, 12], // [top, left, bottom, right] margins in mm
-      filename: `invoice_${formData.createdAt || 'order'}.pdf`,
+      margin: [12, 12, 22, 12], // [top, left, bottom, right] margins in mm (increased bottom margin to leave room for footer)
+      filename: filename,
       image: { type: 'jpeg', quality: 0.98 },
       html2canvas: {
         scale: 2,
@@ -228,6 +241,11 @@ function App() {
     };
 
     const restoreStyles = () => {
+      // Restore visible footer
+      if (footerElement) {
+        footerElement.style.display = originalFooterDisplay;
+      }
+
       // Restore viewport meta content
       if (viewportMeta) {
         viewportMeta.setAttribute('content', originalViewportContent);
@@ -263,6 +281,45 @@ function App() {
       html2pdf()
         .from(element)
         .set(options)
+        .toPdf()
+        .get('pdf')
+        .then((pdf) => {
+          const totalPages = pdf.internal.getNumberOfPages();
+          for (let i = 1; i <= totalPages; i++) {
+            pdf.setPage(i);
+            pdf.setFont('helvetica', 'normal');
+            pdf.setFontSize(9); // Larger, legible font size
+            pdf.setTextColor(107, 114, 128); // #6b7280
+
+            const pageWidth = pdf.internal.pageSize.getWidth();
+            const pageHeight = pdf.internal.pageSize.getHeight();
+
+            // Draw thin line separator
+            pdf.setDrawColor(229, 231, 235); // #e5e7eb
+            pdf.setLineWidth(0.2);
+            pdf.line(12, pageHeight - 18, pageWidth - 12, pageHeight - 18);
+
+            // Draw 3 lines of footer text at the bottom of the page
+            pdf.text(
+              'This is a computer-generated invoice and does not require a physical signature.',
+              pageWidth / 2,
+              pageHeight - 14,
+              { align: 'center' }
+            );
+            pdf.text(
+              'Thank you for your business!',
+              pageWidth / 2,
+              pageHeight - 10,
+              { align: 'center' }
+            );
+            pdf.text(
+              `For any queries, contact us at ${formData.sellerInfo.phone}`,
+              pageWidth / 2,
+              pageHeight - 6,
+              { align: 'center' }
+            );
+          }
+        })
         .save()
         .then(() => {
           restoreStyles();
