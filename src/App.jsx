@@ -150,7 +150,15 @@ function App() {
     const element = document.getElementById('invoice-capture');
     if (!element) return;
 
-    // Save original body styles to prevent mobile layout recalculation/clipping
+    // Save original viewport meta tag content to restore later
+    const viewportMeta = document.querySelector('meta[name="viewport"]');
+    const originalViewportContent = viewportMeta ? viewportMeta.getAttribute('content') : '';
+
+    // Save original html and body styles to prevent mobile layout recalculation/clipping
+    const originalHtmlWidth = document.documentElement.style.width;
+    const originalHtmlMinWidth = document.documentElement.style.minWidth;
+    const originalHtmlOverflow = document.documentElement.style.overflow;
+
     const originalBodyWidth = document.body.style.width;
     const originalBodyMinWidth = document.body.style.minWidth;
     const originalBodyOverflow = document.body.style.overflow;
@@ -160,14 +168,23 @@ function App() {
     const originalWrapperMaxWidth = wrapperRef.current ? wrapperRef.current.style.maxWidth : '';
     const originalWrapperOverflow = wrapperRef.current ? wrapperRef.current.style.overflow : '';
 
-    // Save original inline styles to restore them after rendering
+    // Save original inline styles of the element to restore them after rendering
     const originalTransform = element.style.transform;
     const originalPosition = element.style.position;
     const originalTop = element.style.top;
     const originalLeft = element.style.left;
     const originalWidth = element.style.width;
 
-    // Temporarily force a desktop-like 794px width on the body, wrapper and element to ensure correct layout on mobile
+    // 1. Temporarily force desktop viewport width of 794px in meta viewport
+    if (viewportMeta) {
+      viewportMeta.setAttribute('content', 'width=794, initial-scale=1.0, maximum-scale=1.0, user-scalable=0');
+    }
+
+    // 2. Temporarily force desktop-like 794px width on html, body, wrapper, and element to ensure correct layout and prevent clipping
+    document.documentElement.style.width = '794px';
+    document.documentElement.style.minWidth = '794px';
+    document.documentElement.style.overflow = 'visible';
+
     document.body.style.width = '794px';
     document.body.style.minWidth = '794px';
     document.body.style.overflow = 'visible';
@@ -184,6 +201,9 @@ function App() {
     element.style.left = '0';
     element.style.width = '794px';
 
+    // 3. Scroll to the top-left to avoid html2canvas screenshot offset issues
+    window.scrollTo(0, 0);
+
     // Define options for html2pdf
     const options = {
       margin: [12, 12, 12, 12], // [top, left, bottom, right] margins in mm
@@ -196,7 +216,8 @@ function App() {
         logging: false,
         scrollX: 0,
         scrollY: 0,
-        windowWidth: 794
+        windowWidth: 794,
+        width: 794 // Force the generated canvas to be exactly 794px wide
       },
       jsPDF: {
         unit: 'mm',
@@ -207,6 +228,16 @@ function App() {
     };
 
     const restoreStyles = () => {
+      // Restore viewport meta content
+      if (viewportMeta) {
+        viewportMeta.setAttribute('content', originalViewportContent);
+      }
+
+      // Restore original html styles
+      document.documentElement.style.width = originalHtmlWidth;
+      document.documentElement.style.minWidth = originalHtmlMinWidth;
+      document.documentElement.style.overflow = originalHtmlOverflow;
+
       // Restore original body styles
       document.body.style.width = originalBodyWidth;
       document.body.style.minWidth = originalBodyMinWidth;
@@ -227,27 +258,30 @@ function App() {
       element.style.width = originalWidth;
     };
 
-    // Trigger download directly from the styled active DOM element
-    html2pdf()
-      .from(element)
-      .set(options)
-      .save()
-      .then(() => {
-        restoreStyles();
+    // Use a setTimeout delay of 150ms to allow the mobile layout engine to recalculate the page container width and prevent layout clipping
+    setTimeout(() => {
+      html2pdf()
+        .from(element)
+        .set(options)
+        .save()
+        .then(() => {
+          restoreStyles();
 
-        // Success micro-animation (confetti explosion!)
-        confetti({
-          particleCount: 150,
-          spread: 80,
-          origin: { y: 0.8 },
-          colors: ['#6366f1', '#a855f7', '#10b981', '#3b82f6']
+          // Success micro-animation (confetti explosion!)
+          confetti({
+            particleCount: 150,
+            spread: 80,
+            origin: { y: 0.8 },
+            colors: ['#6366f1', '#a855f7', '#10b981', '#3b82f6']
+          });
+        })
+        .catch(err => {
+          console.error('PDF generation error:', err);
+          restoreStyles();
         });
-      })
-      .catch(err => {
-        console.error('PDF generation error:', err);
-        restoreStyles();
-      });
+    }, 150);
   };
+
 
 
   if (!isAuthenticated) {
@@ -257,7 +291,7 @@ function App() {
           <div className="login-header-section">
             <h1 className="login-title">
               <FileText className="text-primary" size={28} />
-              INNOX BUILDWELL
+              INVOICER
             </h1>
             <p className="login-subtitle">Invoice Management Portal</p>
           </div>
